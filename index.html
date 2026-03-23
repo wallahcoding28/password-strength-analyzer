@@ -1,0 +1,1463 @@
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Password Strength Checker</title>
+  <style>
+    :root {
+      --bg-1: #07111f;
+      --bg-2: #0d1b2f;
+      --panel: rgba(10, 17, 30, 0.72);
+      --panel-border: rgba(255, 255, 255, 0.08);
+      --text: #ecf3ff;
+      --muted: #94a7c6;
+      --soft: rgba(255, 255, 255, 0.08);
+      --shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+      --radius-xl: 28px;
+      --radius-lg: 20px;
+      --radius-md: 14px;
+      --accent-1: #6fe7ff;
+      --accent-2: #5f85ff;
+      --accent-3: #57f0a5;
+      --danger: #ff5d8f;
+      --warning: #ffb85e;
+      --ok: #61f3bc;
+      --bar-fill: linear-gradient(90deg, #ff5d8f 0%, #ffb85e 46%, #61f3bc 100%);
+      --font-display: "Aptos Display", "Trebuchet MS", "Gill Sans", sans-serif;
+      --font-body: "Aptos", "Segoe UI Variable", "Segoe UI", sans-serif;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      min-height: 100%;
+    }
+
+    body {
+      margin: 0;
+      font-family: var(--font-body);
+      color: var(--text);
+      background:
+        radial-gradient(circle at top left, rgba(111, 231, 255, 0.14), transparent 30%),
+        radial-gradient(circle at 85% 15%, rgba(95, 133, 255, 0.18), transparent 26%),
+        radial-gradient(circle at 50% 100%, rgba(87, 240, 165, 0.12), transparent 30%),
+        linear-gradient(135deg, var(--bg-1), var(--bg-2));
+      overflow-x: hidden;
+    }
+
+    body::before,
+    body::after {
+      content: "";
+      position: fixed;
+      width: 28rem;
+      height: 28rem;
+      border-radius: 50%;
+      filter: blur(18px);
+      z-index: 0;
+      pointer-events: none;
+      opacity: 0.22;
+      animation: floatBlob 14s ease-in-out infinite;
+    }
+
+    body::before {
+      top: -8rem;
+      right: -6rem;
+      background: linear-gradient(135deg, rgba(95, 133, 255, 0.9), rgba(111, 231, 255, 0.35));
+    }
+
+    body::after {
+      bottom: -10rem;
+      left: -7rem;
+      background: linear-gradient(135deg, rgba(87, 240, 165, 0.65), rgba(95, 133, 255, 0.18));
+      animation-delay: -6s;
+    }
+
+    .shell {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+    }
+
+    .checker-card {
+      --risk-line: rgba(111, 231, 255, 0.24);
+      --risk-soft: rgba(111, 231, 255, 0.08);
+      --risk-glow: rgba(111, 231, 255, 0.18);
+      width: min(100%, 980px);
+      display: grid;
+      grid-template-columns: 1.05fr 0.95fr;
+      gap: 22px;
+      padding: 24px;
+      border-radius: var(--radius-xl);
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+      border: 1px solid rgba(255, 255, 255, 0.09);
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(22px);
+      -webkit-backdrop-filter: blur(22px);
+      animation: riseIn 0.85s cubic-bezier(.2, .9, .15, 1) both;
+      overflow: hidden;
+    }
+
+    .checker-card[data-risk="weak"] {
+      --risk-line: rgba(255, 93, 143, 0.34);
+      --risk-soft: rgba(255, 93, 143, 0.12);
+      --risk-glow: rgba(255, 93, 143, 0.18);
+    }
+
+    .checker-card[data-risk="moderate"] {
+      --risk-line: rgba(255, 184, 94, 0.34);
+      --risk-soft: rgba(255, 184, 94, 0.12);
+      --risk-glow: rgba(255, 184, 94, 0.18);
+    }
+
+    .checker-card[data-risk="strong"] {
+      --risk-line: rgba(97, 243, 188, 0.30);
+      --risk-soft: rgba(97, 243, 188, 0.10);
+      --risk-glow: rgba(97, 243, 188, 0.16);
+    }
+
+    .checker-card[data-risk="veryStrong"] {
+      --risk-line: rgba(111, 231, 255, 0.32);
+      --risk-soft: rgba(111, 231, 255, 0.10);
+      --risk-glow: rgba(111, 231, 255, 0.16);
+    }
+
+    .hero,
+    .details {
+      border-radius: calc(var(--radius-xl) - 6px);
+      background: var(--panel);
+      border: 1px solid var(--panel-border);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+    }
+
+    .hero {
+      padding: 32px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .hero::before {
+      content: "";
+      position: absolute;
+      inset: auto -20% -30% auto;
+      width: 18rem;
+      height: 18rem;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba(111, 231, 255, 0.18), transparent 62%);
+      pointer-events: none;
+    }
+
+    .eyebrow {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 999px;
+      font-size: 0.8rem;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: #d5e4ff;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.07);
+    }
+
+    .eyebrow::before {
+      content: "";
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, var(--accent-1), var(--accent-3));
+      box-shadow: 0 0 14px rgba(111, 231, 255, 0.7);
+    }
+
+    h1 {
+      margin: 22px 0 12px;
+      font-family: var(--font-display);
+      font-size: clamp(2rem, 4vw, 3.5rem);
+      line-height: 0.96;
+      letter-spacing: -0.04em;
+    }
+
+    .subtitle {
+      margin: 0 0 28px;
+      max-width: 34rem;
+      font-size: 1rem;
+      line-height: 1.7;
+      color: var(--muted);
+    }
+
+    .password-wrap {
+      position: relative;
+      display: grid;
+      gap: 14px;
+    }
+
+    .input-shell {
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 12px 12px 18px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.06);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.03),
+        0 12px 32px rgba(0, 0, 0, 0.22);
+      transition: border-color 180ms ease, transform 180ms ease, box-shadow 180ms ease;
+    }
+
+    .input-shell:focus-within {
+      transform: translateY(-1px);
+      border-color: rgba(111, 231, 255, 0.45);
+      box-shadow:
+        inset 0 1px 1px rgba(255, 255, 255, 0.05),
+        0 16px 38px rgba(0, 0, 0, 0.28),
+        0 0 0 6px rgba(111, 231, 255, 0.08);
+    }
+
+    .input-icon {
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      display: grid;
+      place-items: center;
+      flex: 0 0 auto;
+      color: #c9daff;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0.03));
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+
+    .password-input {
+      flex: 1;
+      min-width: 0;
+      border: 0;
+      outline: 0;
+      background: transparent;
+      color: var(--text);
+      font-size: 1rem;
+      font-family: inherit;
+      letter-spacing: 0.015em;
+    }
+
+    .password-input::placeholder {
+      color: #7889a8;
+    }
+
+    .toggle-btn {
+      border: 0;
+      color: #eaf3ff;
+      background: rgba(255, 255, 255, 0.08);
+      padding: 11px 14px;
+      border-radius: 14px;
+      font: inherit;
+      cursor: pointer;
+      transition: transform 180ms ease, background 180ms ease, color 180ms ease;
+    }
+
+    .toggle-btn:hover {
+      transform: translateY(-1px);
+      background: rgba(255, 255, 255, 0.12);
+    }
+
+    .strength-panel {
+      margin-top: 24px;
+      padding: 20px;
+      border-radius: 20px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid var(--risk-line);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.03), 0 0 0 1px rgba(255, 255, 255, 0.015);
+      transition: border-color 240ms ease, box-shadow 240ms ease, background 240ms ease;
+    }
+
+    .strength-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 14px;
+    }
+
+    .strength-title {
+      font-size: 0.95rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #cad8ef;
+    }
+
+    .strength-label {
+      padding: 8px 12px;
+      border-radius: 999px;
+      font-size: 0.88rem;
+      color: #08111f;
+      background: #dce9ff;
+      transition: background 220ms ease, transform 220ms ease, color 220ms ease;
+    }
+
+    .strength-label.is-changing {
+      animation: pulse 420ms ease;
+    }
+
+    .bar-track {
+      position: relative;
+      height: 14px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.08);
+      overflow: hidden;
+      isolation: isolate;
+    }
+
+    .bar-track::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, rgba(255, 255, 255, 0.06), transparent 32%, rgba(255, 255, 255, 0.06));
+      pointer-events: none;
+    }
+
+    .bar-fill {
+      width: 28%;
+      height: 100%;
+      border-radius: inherit;
+      background: var(--bar-fill);
+      box-shadow: 0 0 20px var(--risk-glow);
+      transform-origin: left center;
+      transition: width 420ms cubic-bezier(.2, .9, .15, 1), filter 220ms ease, box-shadow 260ms ease;
+    }
+
+    .bar-fill.is-changing {
+      animation: sheen 560ms ease;
+    }
+
+    .meter-meta {
+      display: flex;
+      justify-content: space-between;
+      gap: 14px;
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 0.92rem;
+    }
+
+    .tiny-grid {
+      margin-top: 28px;
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    .mini-card {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: transform 220ms ease, border-color 220ms ease, background 220ms ease;
+    }
+
+    .mini-card.is-risk {
+      border-color: var(--risk-line);
+      background: linear-gradient(180deg, var(--risk-soft), rgba(255, 255, 255, 0.03));
+      box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.02);
+    }
+
+    .mini-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(111, 231, 255, 0.25);
+      background: rgba(255, 255, 255, 0.07);
+    }
+
+    .mini-label {
+      color: var(--muted);
+      font-size: 0.82rem;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin-bottom: 8px;
+    }
+
+    .mini-value {
+      font-family: var(--font-display);
+      font-size: 1.15rem;
+      letter-spacing: -0.03em;
+    }
+
+    .details {
+      padding: 26px;
+      display: grid;
+      gap: 18px;
+      align-content: start;
+    }
+
+    .section-card {
+      padding: 22px;
+      border-radius: 22px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, 0.05), rgba(255, 255, 255, 0.03));
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.02);
+      transition: transform 220ms ease, border-color 220ms ease;
+    }
+
+    .section-card:hover {
+      transform: translateY(-2px);
+      border-color: rgba(111, 231, 255, 0.2);
+    }
+
+    .section-top {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      margin-bottom: 12px;
+    }
+
+    .section-title {
+      font-size: 1rem;
+      letter-spacing: 0.02em;
+      font-weight: 600;
+    }
+
+    .section-chip {
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: rgba(255, 255, 255, 0.06);
+      color: #d7e5ff;
+      font-size: 0.82rem;
+      transition: background 220ms ease, color 220ms ease, border-color 220ms ease;
+    }
+
+    .section-chip.is-risk {
+      background: var(--risk-soft);
+      color: #f7fbff;
+      border: 1px solid var(--risk-line);
+    }
+
+    .stat-value {
+      display: inline-block;
+      font-family: var(--font-display);
+      font-size: clamp(1.7rem, 4vw, 2.4rem);
+      letter-spacing: -0.04em;
+      margin: 4px 0 10px;
+      transition: transform 220ms ease, color 220ms ease;
+    }
+
+    .stat-duo {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+      margin-bottom: 10px;
+    }
+
+    .stat-block {
+      padding: 16px;
+      border-radius: 18px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      transition: border-color 220ms ease, background 220ms ease;
+    }
+
+    .stat-block.is-accent {
+      border-color: var(--risk-line);
+      background: linear-gradient(180deg, var(--risk-soft), rgba(255, 255, 255, 0.04));
+    }
+
+    .stat-block .stat-value {
+      margin-bottom: 0;
+      font-size: clamp(1.4rem, 3vw, 2rem);
+    }
+
+    .comparison-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 12px;
+      margin-bottom: 12px;
+    }
+
+    .comparison-card {
+      padding: 14px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      transition: transform 220ms ease, border-color 220ms ease, background 220ms ease;
+    }
+
+    .comparison-card.is-accent {
+      border-color: var(--risk-line);
+      background: linear-gradient(180deg, var(--risk-soft), rgba(255, 255, 255, 0.04));
+    }
+
+    .comparison-value {
+      font-family: var(--font-display);
+      font-size: 1.08rem;
+      letter-spacing: -0.03em;
+      color: #f2f7ff;
+    }
+
+    .stat-insight {
+      font-size: clamp(1.2rem, 3vw, 1.7rem);
+      line-height: 1.2;
+      margin-bottom: 8px;
+    }
+
+    .section-copy {
+      margin: 0;
+      color: var(--muted);
+      line-height: 1.65;
+      font-size: 0.96rem;
+    }
+
+    .suggestion-list {
+      display: grid;
+      gap: 12px;
+      margin-top: 14px;
+    }
+
+    .suggestion-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 14px 15px;
+      border-radius: 16px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      color: #d9e6ff;
+      transform: translateY(0);
+      opacity: 1;
+      transition: transform 220ms ease, opacity 220ms ease, border-color 220ms ease;
+    }
+
+    .suggestion-item.is-warning {
+      border-color: var(--risk-line);
+      background: linear-gradient(180deg, var(--risk-soft), rgba(255, 255, 255, 0.05));
+      animation: warningPulse 1.4s ease;
+    }
+
+    .suggestion-item:hover {
+      transform: translateY(-1px);
+      border-color: rgba(111, 231, 255, 0.24);
+    }
+
+    .suggestion-bullet {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      margin-top: 6px;
+      background: linear-gradient(135deg, var(--accent-1), var(--accent-3));
+      box-shadow: 0 0 12px rgba(111, 231, 255, 0.42);
+      flex: 0 0 auto;
+    }
+
+    .caption {
+      margin-top: 6px;
+      color: #8093b3;
+      font-size: 0.85rem;
+    }
+
+    .pulse {
+      animation: pulse 420ms ease;
+    }
+
+    .warning-text {
+      color: #ffd9e7;
+    }
+
+    @keyframes riseIn {
+      from {
+        opacity: 0;
+        transform: translateY(28px) scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+    }
+
+    @keyframes floatBlob {
+      0%, 100% {
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+      50% {
+        transform: translate3d(0, 26px, 0) scale(1.06);
+      }
+    }
+
+    @keyframes pulse {
+      0% {
+        transform: scale(1);
+      }
+      40% {
+        transform: scale(1.03);
+      }
+      100% {
+        transform: scale(1);
+      }
+    }
+
+    @keyframes sheen {
+      0% {
+        filter: brightness(1);
+      }
+      40% {
+        filter: brightness(1.18);
+      }
+      100% {
+        filter: brightness(1);
+      }
+    }
+
+    @keyframes warningPulse {
+      0% {
+        box-shadow: 0 0 0 0 rgba(255, 93, 143, 0);
+      }
+      35% {
+        box-shadow: 0 0 0 8px rgba(255, 93, 143, 0.08);
+      }
+      100% {
+        box-shadow: 0 0 0 0 rgba(255, 93, 143, 0);
+      }
+    }
+
+    @media (max-width: 920px) {
+      .checker-card {
+        grid-template-columns: 1fr;
+      }
+
+      .hero,
+      .details {
+        padding: 24px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .shell {
+        padding: 16px;
+      }
+
+      .checker-card {
+        padding: 14px;
+        gap: 14px;
+        border-radius: 24px;
+      }
+
+      .hero,
+      .details {
+        padding: 18px;
+      }
+
+      .strength-head,
+      .section-top,
+      .meter-meta {
+        flex-direction: column;
+        align-items: flex-start;
+      }
+
+      .tiny-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .stat-duo,
+      .comparison-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .input-shell {
+        padding-left: 12px;
+      }
+
+      .toggle-btn {
+        padding-inline: 12px;
+      }
+    }
+
+    @media (max-width: 420px) {
+      .tiny-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <main class="shell">
+    <section class="checker-card" aria-label="Password strength checker" data-risk="weak">
+      <div class="hero">
+        <span class="eyebrow">Security Preview</span>
+        <h1>Build stronger passwords with instant visual feedback.</h1>
+        <p class="subtitle">
+          A polished front-end concept for a password strength checker, focused on clarity, motion, and responsive layout.
+        </p>
+
+        <div class="password-wrap">
+          <label class="input-shell" for="passwordInput">
+            <span class="input-icon" aria-hidden="true">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none">
+                <path d="M7 10V8a5 5 0 0 1 10 0v2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/>
+                <rect x="4" y="10" width="16" height="10" rx="3" stroke="currentColor" stroke-width="1.8"/>
+                <circle cx="12" cy="15" r="1.6" fill="currentColor"/>
+              </svg>
+            </span>
+            <input
+              id="passwordInput"
+              class="password-input"
+              type="password"
+              placeholder="Type your password..."
+              autocomplete="off"
+              aria-describedby="strengthHint"
+            >
+            <button id="toggleBtn" class="toggle-btn" type="button" aria-label="Show password">
+              Show
+            </button>
+          </label>
+          <span id="strengthHint" class="caption">Real entropy analysis with an offline crack-time estimate.</span>
+        </div>
+
+        <div class="strength-panel">
+          <div class="strength-head">
+            <span class="strength-title">Strength Meter</span>
+            <span id="strengthLabel" class="strength-label">Weak</span>
+          </div>
+          <div class="bar-track" aria-hidden="true">
+            <div id="barFill" class="bar-fill"></div>
+          </div>
+          <div class="meter-meta">
+            <span id="meterSummary">Add more length and character variety.</span>
+            <span id="meterScore">Entropy: 0 bits</span>
+          </div>
+        </div>
+
+        <div class="tiny-grid">
+          <div class="mini-card">
+            <div class="mini-label">Length</div>
+            <div id="lengthValue" class="mini-value">0 characters</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-label">Effective Entropy</div>
+            <div id="effectiveEntropyMini" class="mini-value">0 bits</div>
+          </div>
+          <div class="mini-card">
+            <div class="mini-label">Character Mix</div>
+            <div id="mixValue" class="mini-value">Minimal</div>
+          </div>
+          <div id="patternCard" class="mini-card">
+            <div class="mini-label">Pattern Check</div>
+            <div id="patternValue" class="mini-value">Needs variety</div>
+          </div>
+        </div>
+      </div>
+
+      <aside class="details">
+        <section class="section-card">
+          <div class="section-top">
+            <div class="section-title">Entropy</div>
+            <span class="section-chip">Dual Signal</span>
+          </div>
+          <div class="stat-duo">
+            <div class="stat-block">
+              <div class="mini-label">Raw Entropy</div>
+              <div id="entropyValue" class="stat-value">0 bits</div>
+            </div>
+            <div id="effectiveEntropyCard" class="stat-block is-accent">
+              <div class="mini-label">Effective Entropy</div>
+              <div id="effectiveEntropyValue" class="stat-value">0 bits</div>
+            </div>
+          </div>
+          <p id="entropyCopy" class="section-copy">
+            Entropy updates instantly from password length and detected character sets.
+          </p>
+        </section>
+
+        <section class="section-card">
+          <div class="section-top">
+            <div class="section-title">Crack Time</div>
+            <span class="section-chip">Dual Estimate</span>
+          </div>
+          <div id="crackValue" class="stat-value">Under a second</div>
+          <div class="comparison-grid">
+            <div class="comparison-card">
+              <div class="mini-label">Brute-force Estimate</div>
+              <div id="bruteForceValue" class="comparison-value">Under a second</div>
+            </div>
+            <div class="comparison-card is-accent">
+              <div class="mini-label">Pattern-aware Estimate</div>
+              <div id="patternAwareValue" class="comparison-value">Under a second</div>
+            </div>
+          </div>
+          <p id="crackCopy" class="section-copy">
+            Enter a password to see an offline brute-force estimate based on modern GPU-class attack speeds.
+          </p>
+        </section>
+
+        <section class="section-card">
+          <div class="section-top">
+            <div class="section-title">Security Insight</div>
+            <span id="insightChip" class="section-chip">Awaiting Input</span>
+          </div>
+          <div id="insightHeadline" class="stat-value stat-insight">Structure insight appears here.</div>
+          <p id="insightCopy" class="section-copy">
+            We combine raw entropy with pattern heuristics so the tool can explain both mathematical strength and real-world predictability.
+          </p>
+        </section>
+
+        <section class="section-card">
+          <div class="section-top">
+            <div class="section-title">Suggestions</div>
+            <span class="section-chip">Live Tips</span>
+          </div>
+          <div id="suggestionList" class="suggestion-list">
+            <div class="suggestion-item">
+              <span class="suggestion-bullet"></span>
+              <span>Use at least 12 characters for a noticeably stronger foundation.</span>
+            </div>
+            <div class="suggestion-item">
+              <span class="suggestion-bullet"></span>
+              <span>Mix uppercase, lowercase, numbers, and symbols for more variety.</span>
+            </div>
+            <div class="suggestion-item">
+              <span class="suggestion-bullet"></span>
+              <span>Avoid repeated words, names, or keyboard patterns.</span>
+            </div>
+          </div>
+        </section>
+      </aside>
+    </section>
+  </main>
+
+  <script>
+    const checkerCard = document.querySelector(".checker-card");
+    const passwordInput = document.getElementById("passwordInput");
+    const toggleBtn = document.getElementById("toggleBtn");
+    const barFill = document.getElementById("barFill");
+    const strengthLabel = document.getElementById("strengthLabel");
+    const meterSummary = document.getElementById("meterSummary");
+    const meterScore = document.getElementById("meterScore");
+    const entropyValue = document.getElementById("entropyValue");
+    const effectiveEntropyValue = document.getElementById("effectiveEntropyValue");
+    const effectiveEntropyMini = document.getElementById("effectiveEntropyMini");
+    const entropyCopy = document.getElementById("entropyCopy");
+    const crackValue = document.getElementById("crackValue");
+    const bruteForceValue = document.getElementById("bruteForceValue");
+    const patternAwareValue = document.getElementById("patternAwareValue");
+    const crackCopy = document.getElementById("crackCopy");
+    const insightChip = document.getElementById("insightChip");
+    const insightHeadline = document.getElementById("insightHeadline");
+    const insightCopy = document.getElementById("insightCopy");
+    const suggestionList = document.getElementById("suggestionList");
+    const lengthValue = document.getElementById("lengthValue");
+    const mixValue = document.getElementById("mixValue");
+    const patternValue = document.getElementById("patternValue");
+    const patternCard = document.getElementById("patternCard");
+    const effectiveEntropyCard = document.getElementById("effectiveEntropyCard");
+
+    const SYMBOL_POOL_SIZE = 32;
+    const ATTACK_SPEED_GUESSES_PER_SECOND = 300000000000;
+    const ATTACK_SPEED_LABEL = "At 300 billion guesses/sec (RTX 4090-class hardware)";
+    const LOG2_ATTACK_SPEED = Math.log2(ATTACK_SPEED_GUESSES_PER_SECOND);
+    const LOG10_OF_2 = Math.LOG10E * Math.LN2;
+    const SECONDS_PER_MINUTE = 60;
+    const SECONDS_PER_HOUR = SECONDS_PER_MINUTE * 60;
+    const SECONDS_PER_DAY = SECONDS_PER_HOUR * 24;
+    const SECONDS_PER_YEAR = SECONDS_PER_DAY * 365.25;
+    const SECONDS_PER_CENTURY = SECONDS_PER_YEAR * 100;
+    const COMMON_PASSWORDS = ["password", "admin", "123456", "qwerty", "letmein"];
+    const DICTIONARY_WORDS = [
+      "password",
+      "admin",
+      "welcome",
+      "login",
+      "letmein",
+      "dragon",
+      "monkey",
+      "secret",
+      "master",
+      "root",
+      "user"
+    ];
+    const KEYBOARD_ROWS = ["qwertyuiop", "asdfghjkl", "zxcvbnm", "1234567890"];
+    const COMMON_SUBSTITUTIONS = {
+      "@": "a",
+      "4": "a",
+      "3": "e",
+      "1": "i",
+      "!": "i",
+      "0": "o",
+      "$": "s",
+      "5": "s",
+      "7": "t"
+    };
+
+    const STRENGTH_THEMES = {
+      weak: {
+        key: "weak",
+        label: "Weak",
+        labelBg: "#ffccd9",
+        labelColor: "#43101f",
+        summary: "This password has limited entropy and needs more complexity."
+      },
+      moderate: {
+        key: "moderate",
+        label: "Moderate",
+        labelBg: "#ffe0b6",
+        labelColor: "#3d2200",
+        summary: "Entropy is improving, but more length or variety would help."
+      },
+      strong: {
+        key: "strong",
+        label: "Strong",
+        labelBg: "#bbffe7",
+        labelColor: "#073222",
+        summary: "This password shows strong entropy and a healthier search space."
+      },
+      veryStrong: {
+        key: "veryStrong",
+        label: "Very Strong",
+        labelBg: "#c8f6ff",
+        labelColor: "#06293a",
+        summary: "Excellent entropy profile with a very large estimated search space."
+      }
+    };
+
+    function getCharacterMix(password) {
+      let groups = 0;
+      if (/[a-z]/.test(password)) groups++;
+      if (/[A-Z]/.test(password)) groups++;
+      if (/\d/.test(password)) groups++;
+      if (/[^A-Za-z0-9]/.test(password)) groups++;
+
+      if (groups <= 1) return "Minimal";
+      if (groups === 2) return "Balanced";
+      if (groups === 3) return "Diverse";
+      return "Advanced";
+    }
+
+    function getCharacterSetData(password) {
+      const sets = [];
+      let size = 0;
+
+      if (/[a-z]/.test(password)) {
+        size += 26;
+        sets.push("lowercase");
+      }
+
+      if (/[A-Z]/.test(password)) {
+        size += 26;
+        sets.push("uppercase");
+      }
+
+      if (/\d/.test(password)) {
+        size += 10;
+        sets.push("numbers");
+      }
+
+      if (/[^A-Za-z0-9]/.test(password)) {
+        size += SYMBOL_POOL_SIZE;
+        sets.push("symbols");
+      }
+
+      return { size, sets };
+    }
+
+    function calculateEntropy(password) {
+      const length = password.length;
+      const { size, sets } = getCharacterSetData(password);
+      const entropy = length && size ? length * Math.log2(size) : 0;
+
+      return { entropy, length, charsetSize: size, sets };
+    }
+
+    function getStrengthTheme(entropy) {
+      if (entropy > 80) return STRENGTH_THEMES.veryStrong;
+      if (entropy >= 60) return STRENGTH_THEMES.strong;
+      if (entropy >= 40) return STRENGTH_THEMES.moderate;
+      return STRENGTH_THEMES.weak;
+    }
+
+    function getEntropyBarWidth(entropy) {
+      if (!entropy) return 0;
+      return Math.min((entropy / 80) * 100, 100);
+    }
+
+    function formatBits(entropy) {
+      if (!entropy) return "0 bits";
+      return `${entropy.toFixed(1)} bits`;
+    }
+
+    function normalizeSubstitutions(password) {
+      return password
+        .toLowerCase()
+        .split("")
+        .map((char) => COMMON_SUBSTITUTIONS[char] || char)
+        .join("");
+    }
+
+    function uniqueMatches(items) {
+      return [...new Set(items)];
+    }
+
+    function collectSourceMatches(password, source, minLength) {
+      const found = new Set();
+
+      for (let start = 0; start <= source.length - minLength; start++) {
+        for (let length = minLength; start + length <= source.length; length++) {
+          const sample = source.slice(start, start + length);
+          if (password.includes(sample)) {
+            found.add(sample);
+          }
+        }
+      }
+
+      return [...found].sort((a, b) => b.length - a.length);
+    }
+
+    function findSequentialPatterns(password) {
+      const lower = password.toLowerCase();
+      const sources = [
+        "abcdefghijklmnopqrstuvwxyz",
+        "zyxwvutsrqponmlkjihgfedcba",
+        "0123456789",
+        "9876543210"
+      ];
+
+      return uniqueMatches(sources.flatMap((source) => collectSourceMatches(lower, source, 3)));
+    }
+
+    function findKeyboardPatterns(password) {
+      const lower = password.toLowerCase();
+      const sources = KEYBOARD_ROWS.flatMap((row) => [row, row.split("").reverse().join("")]);
+      return uniqueMatches(sources.flatMap((source) => collectSourceMatches(lower, source, 3)));
+    }
+
+    function findRepeatedPatterns(password) {
+      return uniqueMatches([...password.matchAll(/(.)\1{2,}/g)].map((match) => match[0]));
+    }
+
+    function addPatternFinding(findings, finding) {
+      if (!findings.some((item) => item.id === finding.id)) {
+        findings.push(finding);
+      }
+    }
+
+    function analyzePatterns(password, entropy) {
+      const lower = password.toLowerCase();
+      const normalized = normalizeSubstitutions(password);
+      const findings = [];
+
+      for (const common of COMMON_PASSWORDS) {
+        if (lower === common) {
+          addPatternFinding(findings, {
+            id: `common-exact-${common}`,
+            label: "Common password detected",
+            detail: `Matches a well-known password: "${common}".`,
+            penalty: 40,
+            suggestion: "Avoid common passwords entirely and build something unique.",
+            severity: 4
+          });
+        } else if (lower.includes(common)) {
+          addPatternFinding(findings, {
+            id: `common-contains-${common}`,
+            label: "Common password fragment detected",
+            detail: `Contains the highly predictable term "${common}".`,
+            penalty: 32,
+            suggestion: "Remove common password fragments and replace them with unique words.",
+            severity: 4
+          });
+        } else if (normalized.includes(common) && normalized !== lower) {
+          addPatternFinding(findings, {
+            id: `common-substitution-${common}`,
+            label: "Common substitution pattern detected",
+            detail: `Looks like "${common}" with predictable symbol or number swaps.`,
+            penalty: 30,
+            suggestion: "Do not rely on simple substitutions like @, 0, or 1 to strengthen a weak base word.",
+            severity: 4
+          });
+        }
+      }
+
+      for (const word of DICTIONARY_WORDS) {
+        if (COMMON_PASSWORDS.includes(word)) continue;
+
+        if (lower.includes(word)) {
+          addPatternFinding(findings, {
+            id: `dictionary-${word}`,
+            label: "Dictionary word detected",
+            detail: `Contains a common dictionary-style word: "${word}".`,
+            penalty: 18,
+            suggestion: "Avoid dictionary words and use unrelated words or a longer passphrase.",
+            severity: 3
+          });
+        } else if (normalized.includes(word) && normalized !== lower) {
+          addPatternFinding(findings, {
+            id: `dictionary-substitution-${word}`,
+            label: "Obfuscated dictionary word detected",
+            detail: `Contains "${word}" after reversing predictable substitutions.`,
+            penalty: 16,
+            suggestion: "Break away from word-plus-symbol patterns that attackers already expect.",
+            severity: 3
+          });
+        }
+      }
+
+      const sequentialPatterns = findSequentialPatterns(password);
+      if (sequentialPatterns.length) {
+        addPatternFinding(findings, {
+          id: "sequence",
+          label: "Sequential pattern detected",
+          detail: `Contains a predictable sequence like "${sequentialPatterns[0]}".`,
+          penalty: 12,
+          suggestion: "Break predictable alphabetic or numeric sequences.",
+          severity: 2
+        });
+      }
+
+      const keyboardPatterns = findKeyboardPatterns(password);
+      if (keyboardPatterns.length) {
+        addPatternFinding(findings, {
+          id: "keyboard",
+          label: "Keyboard pattern detected",
+          detail: `Contains a keyboard walk like "${keyboardPatterns[0]}".`,
+          penalty: 14,
+          suggestion: "Avoid keyboard walks such as qwerty, asdf, or zxcv patterns.",
+          severity: 3
+        });
+      }
+
+      const repeatedPatterns = findRepeatedPatterns(password);
+      if (repeatedPatterns.length) {
+        addPatternFinding(findings, {
+          id: "repeat",
+          label: "Repeated characters detected",
+          detail: `Contains a repeated run like "${repeatedPatterns[0]}".`,
+          penalty: 10,
+          suggestion: "Avoid repeating the same character several times in a row.",
+          severity: 2
+        });
+      }
+
+      const usesCommonSubstitution = /[@4301!$57]/.test(password);
+      if (
+        usesCommonSubstitution &&
+        normalized !== lower &&
+        !findings.some((finding) => finding.id.includes("substitution"))
+      ) {
+        addPatternFinding(findings, {
+          id: "generic-substitution",
+          label: "Predictable substitution style detected",
+          detail: "Uses common letter-to-symbol swaps attackers already model.",
+          penalty: 6,
+          suggestion: "Do not depend on simple symbol swaps to carry password strength.",
+          severity: 1
+        });
+      }
+
+      const penalty = Math.min(findings.reduce((total, finding) => total + finding.penalty, 0), Math.max(48, entropy * 0.65));
+      const effectiveEntropy = Math.max(0, entropy - penalty);
+      const primaryFinding = findings.slice().sort((a, b) => b.severity - a.severity || b.penalty - a.penalty)[0] || null;
+
+      return {
+        findings,
+        penalty,
+        effectiveEntropy,
+        primaryFinding,
+        hasRisk: findings.length > 0
+      };
+    }
+
+    function pluralize(value, unit) {
+      return value === 1 ? unit : `${unit}s`;
+    }
+
+    function formatLogQuantity(log2Value, unit) {
+      const log10Value = log2Value * LOG10_OF_2;
+
+      if (log10Value >= 12) {
+        return `10^${Math.floor(log10Value)} ${pluralize(2, unit)}`;
+      }
+
+      const value = Math.pow(10, log10Value);
+      const rounded = value >= 100 ? Math.round(value).toString() : value >= 10 ? value.toFixed(1) : value.toFixed(2);
+      const numericValue = Number(rounded);
+      return `${rounded} ${pluralize(numericValue, unit)}`;
+    }
+
+    function formatLargeYears(log2Years) {
+      const log10Years = log2Years * LOG10_OF_2;
+
+      if (log10Years >= 9) {
+        const log10Billions = log10Years - 9;
+        if (log10Billions >= 3) {
+          return `${formatLogQuantity(log2Years, "year")} total`;
+        }
+
+        const billions = Math.pow(10, log10Billions);
+        const rounded = billions >= 100 ? Math.round(billions).toString() : billions >= 10 ? billions.toFixed(1) : billions.toFixed(2);
+        return `${rounded} billion years`;
+      }
+
+      if (log10Years >= 6) {
+        const millions = Math.pow(10, log10Years - 6);
+        const rounded = millions >= 100 ? Math.round(millions).toString() : millions >= 10 ? millions.toFixed(1) : millions.toFixed(2);
+        return `${rounded} million years`;
+      }
+
+      if (log10Years >= 3) {
+        const millennia = Math.pow(10, log10Years - 3);
+        const rounded = millennia >= 100 ? Math.round(millennia).toString() : millennia >= 10 ? millennia.toFixed(1) : millennia.toFixed(2);
+        return `${rounded} millennia`;
+      }
+
+      if (log10Years >= 2) {
+        const centuries = Math.pow(10, log10Years - 2);
+        const rounded = centuries >= 100 ? Math.round(centuries).toString() : centuries >= 10 ? centuries.toFixed(1) : centuries.toFixed(2);
+        return `${rounded} centuries`;
+      }
+
+      return formatLogQuantity(log2Years, "year");
+    }
+
+    function formatDurationFromLog2(log2Seconds) {
+      if (!Number.isFinite(log2Seconds)) return "Instantly";
+      if (log2Seconds < 0) return "Under a second";
+
+      const log2Century = Math.log2(SECONDS_PER_CENTURY);
+      const log2Year = Math.log2(SECONDS_PER_YEAR);
+      const log2Day = Math.log2(SECONDS_PER_DAY);
+      const log2Hour = Math.log2(SECONDS_PER_HOUR);
+      const log2Minute = Math.log2(SECONDS_PER_MINUTE);
+
+      if (log2Seconds >= log2Century) {
+        return formatLargeYears(log2Seconds - log2Year);
+      }
+
+      if (log2Seconds >= log2Year) {
+        return formatLogQuantity(log2Seconds - log2Year, "year");
+      }
+
+      if (log2Seconds >= log2Day) {
+        return formatLogQuantity(log2Seconds - log2Day, "day");
+      }
+
+      if (log2Seconds >= log2Hour) {
+        return formatLogQuantity(log2Seconds - log2Hour, "hour");
+      }
+
+      if (log2Seconds >= log2Minute) {
+        return formatLogQuantity(log2Seconds - log2Minute, "minute");
+      }
+
+      return formatLogQuantity(log2Seconds, "second");
+    }
+
+    function estimateCrackTime(entropy) {
+      const log2Seconds = entropy - LOG2_ATTACK_SPEED;
+      return formatDurationFromLog2(log2Seconds);
+    }
+
+    function getPatternText(password, patternAnalysis) {
+      if (!password) return "Needs variety";
+      if (patternAnalysis.primaryFinding) return patternAnalysis.primaryFinding.label;
+      if (password.length >= 12) return "No obvious risk";
+      return "Could improve";
+    }
+
+    function buildSecurityInsight(password, entropy, patternAnalysis, theme) {
+      if (!password) {
+        return {
+          chip: "Awaiting Input",
+          headline: "Structure insight appears here.",
+          copy: "We combine raw entropy with pattern heuristics so the tool can explain both mathematical strength and real-world predictability."
+        };
+      }
+
+      if (patternAnalysis.hasRisk && entropy >= 60) {
+        return {
+          chip: "Pattern Override",
+          headline: "High entropy, but predictable structure reduces real resilience.",
+          copy: `${patternAnalysis.primaryFinding.detail} The password still generates broad search space mathematically, but the detected pattern makes it easier to prioritize in real attacks.`
+        };
+      }
+
+      if (patternAnalysis.hasRisk) {
+        return {
+          chip: "Behavioral Risk",
+          headline: patternAnalysis.primaryFinding.label,
+          copy: `${patternAnalysis.primaryFinding.detail} Pattern penalties reduce effective entropy to ${formatBits(patternAnalysis.effectiveEntropy)}, which is what the strength meter now reflects.`
+        };
+      }
+
+      if (theme.key === "veryStrong" || theme.key === "strong") {
+        return {
+          chip: "Resilient Structure",
+          headline: "Strong length and character diversity with no obvious weak patterns.",
+          copy: `Raw entropy and effective entropy stay closely aligned because the password avoids common words, keyboard walks, and repeated sequences.`
+        };
+      }
+
+      return {
+        chip: "Needs Hardening",
+        headline: "The structure is clean, but the search space is still limited.",
+        copy: "There are no major pattern penalties right now, so the best improvement is usually more length and broader character variety."
+      };
+    }
+
+    function buildSuggestions(password, patternAnalysis) {
+      const suggestions = [];
+
+      if (patternAnalysis.primaryFinding) {
+        suggestions.push({
+          text: `Warning: ${patternAnalysis.primaryFinding.detail}`,
+          tone: "warning"
+        });
+      }
+
+      if (patternAnalysis.findings.some((finding) => finding.id.startsWith("common-") || finding.id.startsWith("dictionary"))) {
+        suggestions.push({
+          text: "Avoid dictionary words, common passwords, and familiar base words.",
+          tone: "warning"
+        });
+      }
+
+      if (patternAnalysis.findings.some((finding) => finding.id === "sequence" || finding.id === "keyboard")) {
+        suggestions.push({
+          text: "Break predictable sequences and keyboard walks with unrelated characters.",
+          tone: "warning"
+        });
+      }
+
+      if (patternAnalysis.findings.some((finding) => finding.id === "repeat")) {
+        suggestions.push({
+          text: "Replace repeated characters with more varied, less predictable structure.",
+          tone: "warning"
+        });
+      }
+
+      if (patternAnalysis.findings.some((finding) => finding.id.includes("substitution"))) {
+        suggestions.push({
+          text: "Do not rely on simple substitutions like @ for a or 0 for o.",
+          tone: "warning"
+        });
+      }
+
+      if (password.length < 12) suggestions.push({
+        text: "Use at least 12 characters for a noticeably stronger foundation.",
+        tone: "advice"
+      });
+      if (!/[A-Z]/.test(password)) suggestions.push({
+        text: "Add an uppercase letter to improve visual complexity.",
+        tone: "advice"
+      });
+      if (!/[a-z]/.test(password)) suggestions.push({
+        text: "Include lowercase letters so the mix feels more natural and varied.",
+        tone: "advice"
+      });
+      if (!/\d/.test(password)) suggestions.push({
+        text: "Blend in numbers to create more combinations.",
+        tone: "advice"
+      });
+      if (!/[^A-Za-z0-9]/.test(password)) suggestions.push({
+        text: "A symbol can help break predictable character patterns.",
+        tone: "advice"
+      });
+
+      const uniqueSuggestions = suggestions.filter((item, index, array) =>
+        array.findIndex((candidate) => candidate.text === item.text) === index
+      ).slice(0, 3);
+
+      return uniqueSuggestions.length ? uniqueSuggestions : [
+        { text: "Great mix so far. Consider a longer passphrase for even more entropy.", tone: "advice" },
+        { text: "Keep avoiding common words, names, and repeated sequences.", tone: "advice" },
+        { text: "A unique password per site still matters as much as strength.", tone: "advice" }
+      ];
+    }
+
+    function renderSuggestions(items) {
+      suggestionList.innerHTML = items.map((item) => `
+        <div class="suggestion-item${item.tone === "warning" ? " is-warning" : ""}">
+          <span class="suggestion-bullet"></span>
+          <span class="${item.tone === "warning" ? "warning-text" : ""}">${item.text}</span>
+        </div>
+      `).join("");
+    }
+
+    function animateStat(element) {
+      element.classList.remove("pulse");
+      void element.offsetWidth;
+      element.classList.add("pulse");
+    }
+
+    function animateStrengthChange() {
+      strengthLabel.classList.remove("is-changing");
+      barFill.classList.remove("is-changing");
+      void strengthLabel.offsetWidth;
+      strengthLabel.classList.add("is-changing");
+      barFill.classList.add("is-changing");
+    }
+
+    function updateUI() {
+      const password = passwordInput.value;
+      const { entropy, length, charsetSize, sets } = calculateEntropy(password);
+      const patternAnalysis = analyzePatterns(password, entropy);
+      const theme = getStrengthTheme(patternAnalysis.effectiveEntropy);
+      const insight = buildSecurityInsight(password, entropy, patternAnalysis, theme);
+      const detectedSets = sets.length ? sets.join(", ") : "no character sets yet";
+      const bruteForceEstimate = estimateCrackTime(entropy);
+      const patternAwareEstimate = estimateCrackTime(patternAnalysis.effectiveEntropy);
+
+      checkerCard.dataset.risk = theme.key;
+      barFill.style.width = getEntropyBarWidth(patternAnalysis.effectiveEntropy) + "%";
+      strengthLabel.textContent = theme.label;
+      strengthLabel.style.background = theme.labelBg;
+      strengthLabel.style.color = theme.labelColor;
+      meterSummary.textContent = password
+        ? patternAnalysis.hasRisk
+          ? `${patternAnalysis.primaryFinding.label}. Pattern risk lowers effective strength despite raw entropy.`
+          : theme.summary
+        : "Type a password to calculate real entropy in bits.";
+      meterScore.textContent = "Entropy: " + formatBits(entropy);
+
+      entropyValue.textContent = formatBits(entropy);
+      effectiveEntropyValue.textContent = formatBits(patternAnalysis.effectiveEntropy);
+      effectiveEntropyMini.textContent = formatBits(patternAnalysis.effectiveEntropy);
+      entropyCopy.textContent = password
+        ? `Calculated with H = L * log2(R), where L = ${length} and R = ${charsetSize} from ${detectedSets}. Effective strength after pattern risk: ${formatBits(patternAnalysis.effectiveEntropy)}.`
+        : "Entropy updates instantly from password length and detected character sets.";
+      crackValue.textContent = patternAwareEstimate;
+      bruteForceValue.textContent = bruteForceEstimate;
+      patternAwareValue.textContent = patternAwareEstimate;
+      crackCopy.textContent = password
+        ? `${ATTACK_SPEED_LABEL}. Brute-force uses raw entropy, while the pattern-aware estimate applies the heuristic penalty before calculating time = 2^entropy / attack speed.`
+        : `${ATTACK_SPEED_LABEL}. Enter a password to compare brute-force and pattern-aware estimates.`;
+
+      insightChip.textContent = insight.chip;
+      insightHeadline.textContent = insight.headline;
+      insightCopy.textContent = insight.copy;
+
+      lengthValue.textContent = `${password.length} ${password.length === 1 ? "character" : "characters"}`;
+      mixValue.textContent = getCharacterMix(password);
+      patternValue.textContent = getPatternText(password, patternAnalysis);
+      patternCard.classList.toggle("is-risk", patternAnalysis.hasRisk);
+      effectiveEntropyCard.classList.toggle("is-accent", Boolean(password));
+      insightChip.classList.toggle("is-risk", patternAnalysis.hasRisk);
+
+      renderSuggestions(buildSuggestions(password, patternAnalysis));
+      animateStat(entropyValue);
+      animateStat(effectiveEntropyValue);
+      animateStat(crackValue);
+      animateStrengthChange();
+    }
+
+    toggleBtn.addEventListener("click", () => {
+      const isHidden = passwordInput.type === "password";
+      passwordInput.type = isHidden ? "text" : "password";
+      toggleBtn.textContent = isHidden ? "Hide" : "Show";
+      toggleBtn.setAttribute("aria-label", isHidden ? "Hide password" : "Show password");
+    });
+
+    passwordInput.addEventListener("input", updateUI);
+
+    updateUI();
+  </script>
+</body>
+</html>
+```
